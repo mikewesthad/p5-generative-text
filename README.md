@@ -1,3 +1,3 @@
-# generative-typography
+# p5-generative-text
 
-Experiments with text with [p5.js](http://p5js.org/)
+Experiments with text & visuals in [p5.js](http://p5js.org/)
