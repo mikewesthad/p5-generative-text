@@ -164,7 +164,7 @@ gulp.task("run", [
 gulp.task("push:gh-pages", function () {
     return gulp.src("./" + paths.dest + "/**/*")
         .pipe(ghPages({
-            remoteUrl: "https://github.com/mikewesthad/generative-text.git"
+            remoteUrl: "https://github.com/mikewesthad/p5-generative-text.git"
         }));
 });
 
