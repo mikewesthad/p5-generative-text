@@ -3,17 +3,18 @@ module.exports = startSketch;
 // Modules
 var dom = require("../utilities/dom-utilities.js");
 var Noise = require("../generators/noise-generators.js");
+var BboxText = require("p5-bbox-aligned-text");
 
 // Globals
-var p, font, circles;
+var p, font, circles, bboxText;
 var isFirstFrame = true;
 var isMouseOver = false;
 var canvasSize = {
     width: 400,
     height: 150
 };
-var text = "String";
-var fontSize = 130;
+var text = "halftone";
+var fontSize = 150;
 var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
 
 function startSketch() { 
@@ -51,20 +52,26 @@ function setup() {
 
     // Draw the stationary text
     p.background(255);
-    p.textFont(font);
     p.textSize(fontSize);
-    p.textAlign(p.CENTER, p.CENTER);
+    bboxText = new BboxText(font, text, fontSize, p);
+    bboxText.setAnchor(BboxText.ALIGN.CENTER, BboxText.BASELINE.FONT_CENTER);
     p.noStroke();
     p.fill("#0A000A");    
-    p.text(text, p.width / 2, p.height / 2);
+    bboxText.draw(p.width / 2, p.height / 2);
 
-    // Loop over the pixels in the canvas to sample the word
+
+    // Loop over the pixels in the text's bounding box to sample the word
+    var bbox = bboxText.getBbox(p.width / 2, p.height / 2);
+    var startX = Math.floor(Math.max(bbox.x - 5, 0));
+    var endX = Math.ceil(Math.min(bbox.x + bbox.w + 5, p.width));
+    var startY = Math.floor(Math.max(bbox.y - 5, 0));
+    var endY = Math.ceil(Math.min(bbox.y + bbox.h + 5, p.height));
     var spacing = 5;
     p.loadPixels();
     p.pixelDensity(1);
     circles = [];
-    for (var y = 0; y < p.height; y += spacing) {
-        for (var x = 0; x < p.width; x += spacing) {            
+    for (var y = startY; y < endY; y += spacing) {
+        for (var x = startX; x < endX; x += spacing) {  
             var i = 4 * ((y * p.width) + x);
             var r = p.pixels[i];
             var g = p.pixels[i + 1];
@@ -115,7 +122,7 @@ function draw() {
         var circle = circles[i];
         var c = circle.color;
         var dist = p.dist(circle.x, circle.y, p.mouseX, p.mouseY);
-        var radius = p.map(dist, 0, 120, 1, 10);
+        var radius = p.map(dist, 0, 150, 1, 10);
         p.fill(c);
         p.ellipse(circle.x, circle.y, radius, radius);
     }
