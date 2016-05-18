@@ -12,8 +12,8 @@ var canvasSize = {
 	width: 400,
 	height: 150
 };
-var text = "String";
-var fontSize = 120;
+var text = "Squiggle";
+var fontSize = 100;
 var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
 
 function startSketch() {	
