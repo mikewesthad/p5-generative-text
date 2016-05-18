@@ -54,7 +54,8 @@ function setup() {
     p.background(255);
     p.textSize(fontSize);
     bboxText = new BboxText(font, text, fontSize, p);
-    bboxText.setAnchor(BboxText.ALIGN.CENTER, BboxText.BASELINE.FONT_CENTER);
+    bboxText.setAnchor(BboxText.ALIGN.BOX_CENTER, 
+                       BboxText.BASELINE.FONT_CENTER);
     p.noStroke();
     p.fill("#0A000A");    
     bboxText.draw(p.width / 2, p.height / 2);
