@@ -1,4 +1,4 @@
-module.exports = SinGenerator
+module.exports = SinGenerator;
 
 /**
  * A utility class for generating values along a sinwave

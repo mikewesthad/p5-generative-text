@@ -389,7 +389,7 @@ NoiseGenerator2D.prototype.generate = function () {
     };
 };
 },{}],3:[function(require,module,exports){
-module.exports = SinGenerator
+module.exports = SinGenerator;
 
 /**
  * A utility class for generating values along a sinwave
@@ -480,11 +480,11 @@ function TextParticle(p, font, fontSize, text, position, velocity) {
 TextParticle.prototype.setVelocity = function (velocity) {
     this._vel.x = velocity.x;
     this._vel.y = velocity.y;
-}
+};
 
 TextParticle.prototype.setRotation = function (radians) {
     this._bboxText.setRotation(radians);
-}
+};
 
 TextParticle.prototype.update = function () {
     // Update position
@@ -502,16 +502,18 @@ TextParticle.prototype.update = function () {
     var top = this._pos.y - this.halfHeight;
     var bottom = this._pos.y + this.halfHeight;
 
+    var amountOffscreen, distBeyondWrap;
+
     // Check if word is offscreen along x-axis
     if (right > this.p.width) {
-        var amountOffscreen = right - this.p.width;
+        amountOffscreen = right - this.p.width;
         if (amountOffscreen > this.width) {
             // Word is completely off the right edge of the screen, so it
             // needs to be wrapped around to the left side of the screen. It is
             // important to account for the "remainder" to get smooth motion:
             // (amountOffscreen - this.width) = distance from left edge of word
             //                                  to the right edge of the screen
-            var distBeyondWrap = (amountOffscreen - this.width);
+            distBeyondWrap = (amountOffscreen - this.width);
             this._pos.x = this.halfWidth + distBeyondWrap;
             // If the particle wraps around the y-axis, we want to keep the x
             // position up to date
@@ -527,11 +529,11 @@ TextParticle.prototype.update = function () {
         }
     }
     else if (left < 0) {
-        var amountOffscreen = -left;
+        amountOffscreen = -left;
         if (amountOffscreen > this.width) {
             // Word is completely off the left edge of the screen, so it needs
             // to be wrapped around to the right side of the screen
-            var distBeyondWrap = (amountOffscreen - this.width);
+            distBeyondWrap = (amountOffscreen - this.width);
             this._pos.x = (this.p.width - this.halfWidth) - distBeyondWrap;
             this._wrappedPos.x = this._pos.x;
         }
@@ -544,11 +546,11 @@ TextParticle.prototype.update = function () {
 
     // Check if word is offscreen along y-axis
     if (bottom > this.p.height) {
-        var amountOffscreen = bottom - this.p.height;
+        amountOffscreen = bottom - this.p.height;
         if (amountOffscreen > this.height) {
             // Word is completely off the bottom edge of the screen, so it
             // needs to be wrapped around to the top side of the screen 
-            var distBeyondWrap = (amountOffscreen - this.height);
+            distBeyondWrap = (amountOffscreen - this.height);
             this._pos.y = this.halfHeight + distBeyondWrap;
             // If the particle wraps around the x-axis, we want to keep the y
             // position up to date
@@ -561,11 +563,11 @@ TextParticle.prototype.update = function () {
         }
     }
     else if (top < 0) {
-        var amountOffscreen = -top;
+        amountOffscreen = -top;
         if (amountOffscreen > this.height) {
             // Word is completely off the top edge of the screen, so it needs
             // to be wrapped around to the bottom side of the screen
-            var distBeyondWrap = (amountOffscreen - this.height);
+            distBeyondWrap = (amountOffscreen - this.height);
             this._pos.y = (this.p.height - this.halfHeight) - distBeyondWrap;
             this._wrappedPos.y = this._pos.y;
         }
