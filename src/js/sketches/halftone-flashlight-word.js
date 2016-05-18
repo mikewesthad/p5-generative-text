@@ -14,7 +14,7 @@ var canvasSize = {
 };
 var text = "String";
 var fontSize = 130;
-var fontPath = "/assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
 
 function startSketch() { 
     // Create div on page for the sketch
