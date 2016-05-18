@@ -1,2 +1,2 @@
-var noisyWordsSketch = require("./sketches/noisy-word.js");
-noisyWordsSketch();
+require("./sketches/noisy-word.js")();
+require("./sketches/halftone-flashlight-word.js")();
