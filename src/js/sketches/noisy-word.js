@@ -16,7 +16,7 @@ var text = "String";
 var fontSize = 120;
 var fontPath = "/assets/fonts/leaguegothic-regular-webfont.ttf";
 
-function startSketch(containerID) {	
+function startSketch() {	
 	// Create div on page for the sketch
 	var id = "noisy-word";
 	var sketchesContainer = document.getElementById("sketches");
