@@ -21,8 +21,8 @@ module.exports = BboxAlignedText;
  *     
  *     bboxText = new BboxAlignedText(font, "Hey!", 30);    
  *     bboxText.setRotation(PI / 4);
- *     bboxText.setAnchor(BboxAlignedText.ALIGN.CENTER, 
- *                        BboxAlignedText.BASELINE.CENTER);
+ *     bboxText.setAnchor(BboxAlignedText.ALIGN.BOX_CENTER, 
+ *                        BboxAlignedText.BASELINE.BOX_CENTER);
  *     
  *     fill("#00A8EA");
  *     noStroke();
@@ -35,8 +35,8 @@ function BboxAlignedText(font, text, fontSize, pInstance) {
     this._fontSize = (fontSize !== undefined) ? fontSize : 12;
     this.p = pInstance || window; // If instance is omitted, assume global scope
     this._rotation = 0;
-    this._hAlign = BboxAlignedText.ALIGN.CENTER;
-    this._vAlign = BboxAlignedText.BASELINE.CENTER;
+    this._hAlign = BboxAlignedText.ALIGN.BOX_CENTER;
+    this._vAlign = BboxAlignedText.BASELINE.BOX_CENTER;
     this._calculateMetrics(true);
 }
 
@@ -49,11 +49,11 @@ function BboxAlignedText(font, text, fontSize, pInstance) {
  */
 BboxAlignedText.ALIGN = {
     /** Draw from the left of the bbox */
-    LEFT: "left",
+    BOX_LEFT: "box_left",
     /** Draw from the center of the bbox */
-    CENTER: "center",
+    BOX_CENTER: "box_center",
     /** Draw from the right of the bbox */
-    RIGHT: "right"
+    BOX_RIGHT: "box_right"
 };
 
 /**
@@ -65,11 +65,11 @@ BboxAlignedText.ALIGN = {
  */
 BboxAlignedText.BASELINE = {
     /** Draw from the top of the bbox */
-    BOX_TOP: "top",
+    BOX_TOP: "box_top",
     /** Draw from the center of the bbox */
-    BOX_CENTER: "center",
+    BOX_CENTER: "box_center",
     /** Draw from the bottom of the bbox */
-    BOM_BOTTOM: "bottom",
+    BOX_BOTTOM: "box_bottom",
     /** 
      * Draw from half the height of the font. Specifically the height is
      * calculated as: ascent + descent.
@@ -138,10 +138,13 @@ BboxAlignedText.prototype.getBbox = function(x, y) {
 };
 
 /**
- * Draws the text particle with the specified style parameters
+ * Draws the text particle with the specified style parameters. Note: this is
+ * going to set the textFont, textSize & rotation before drawing. You should set
+ * the color/stroke/fill that you want before drawing. This function will clean
+ * up after itself and reset styling back to what it was before it was called.
  * @public
- * @param  {number}  x                  X coordinate of text anchor
- * @param  {number}  y                  Y coordinate of text anchor
+ * @param  {number}  [x=0]              X coordinate of text anchor
+ * @param  {number}  [y=0]              Y coordinate of text anchor
  * @param  {boolean} [drawBounds=false] Flag for drawing bounding box
  */
 BboxAlignedText.prototype.draw = function(x, y, drawBounds) {
@@ -203,13 +206,13 @@ BboxAlignedText.prototype._calculateRotatedCoords = function (x, y, angle) {
 BboxAlignedText.prototype._calculateAlignedCoords = function(x, y) {
     var newX, newY;
     switch (this._hAlign) {
-        case BboxAlignedText.ALIGN.LEFT:
+        case BboxAlignedText.ALIGN.BOX_LEFT:
             newX = x;
             break;
-        case BboxAlignedText.ALIGN.CENTER:
+        case BboxAlignedText.ALIGN.BOX_CENTER:
             newX = x - this.halfWidth;
             break;
-        case BboxAlignedText.ALIGN.RIGHT:
+        case BboxAlignedText.ALIGN.BOX_RIGHT:
             newX = x - this.width;
             break;
         default:
@@ -218,13 +221,13 @@ BboxAlignedText.prototype._calculateAlignedCoords = function(x, y) {
             break;
     }
     switch (this._vAlign) {
-        case BboxAlignedText.BASELINE.TOP:
+        case BboxAlignedText.BASELINE.BOX_TOP:
             newY = y - this._boundsOffset.y;
             break;
-        case BboxAlignedText.BASELINE.CENTER:
+        case BboxAlignedText.BASELINE.BOX_CENTER:
             newY = y + this._distBaseToMid;
             break;
-        case BboxAlignedText.BASELINE.BOTTOM:
+        case BboxAlignedText.BASELINE.BOX_BOTTOM:
             newY = y - this._distBaseToBottom;
             break;
         case BboxAlignedText.BASELINE.FONT_CENTER:
@@ -251,8 +254,14 @@ BboxAlignedText.prototype._calculateMetrics = function(shouldUpdateHeight) {
     // p5 0.5.0 has a bug - text bounds are clipped by (0, 0)
     // Calculating bounds hack
     var bounds = this._font.textBounds(this._text, 1000, 1000, this._fontSize);
-    bounds.x -= 1000;
-    bounds.y -= 1000;
+    // Bounds is a reference - if we mess with it directly, we can mess up 
+    // future values! (It changes the bbox cache in p5.)
+    bounds = { 
+        x: bounds.x - 1000, 
+        y: bounds.y - 1000, 
+        w: bounds.w, 
+        h: bounds.h 
+    }; 
 
     if (shouldUpdateHeight) {
         this._ascent = this._font._textAscent(this._fontSize);
@@ -264,7 +273,7 @@ BboxAlignedText.prototype._calculateMetrics = function(shouldUpdateHeight) {
     this.height = bounds.h;
     this.halfWidth = this.width / 2;
     this.halfHeight = this.height / 2;
-    this._boundsOffset = {x: bounds.x, y: bounds.y};
+    this._boundsOffset = { x: bounds.x, y: bounds.y };
     this._distBaseToMid = Math.abs(bounds.y) - this.halfHeight;
     this._distBaseToBottom = this.height - Math.abs(bounds.y);
 };
@@ -291,7 +300,8 @@ function NoiseGenerator1D(p, min, max, increment, offset) {
     this.min = (min !== undefined) ? min : 0;
     this.max = (max !== undefined) ? max : 1;
     this.increment = (increment !== undefined) ? increment : 0.1;
-    this.position = (offset !== undefined) ? p.random(-1000000, 1000000) : 0;
+    this.position = (offset !== undefined) ? offset : 
+                                            p.random(-1000000, 1000000);
 }
 
 /**
@@ -379,9 +389,217 @@ NoiseGenerator2D.prototype.generate = function () {
     };
 };
 },{}],3:[function(require,module,exports){
+module.exports = SinGenerator
+
+/**
+ * A utility class for generating values along a sinwave
+ * @constructor
+ * @param {object} p               Reference to a p5 sketch
+ * @param {number} [min=0]         Minimum value for the noise
+ * @param {number} [max=1]         Maximum value for the noise
+ * @param {number} [increment=0.1] Increment used when updating
+ * @param {number} [offset=random] Where to start along the sinewave
+ */
+function SinGenerator(p, min, max, angleIncrement, startingAngle) {
+    this.p = p;
+    this.min = (min !== undefined) ? min : 0;
+    this.max = (max !== undefined) ? max : 1;
+    this.increment = (angleIncrement !== undefined) ? angleIncrement : 0.1;
+    this.angle = (startingAngle !== undefined) ? startingAngle :
+                                                 p.random(-1000000, 1000000);
+}
+
+/**
+ * Update the min and max values
+ * @param  {number} min Minimum value
+ * @param  {number} max Maximum value
+ */
+SinGenerator.prototype.setBounds = function (min, max) {
+    if (min !== undefined) this.min = min;
+    if (max !== undefined) this.max = max;
+};
+
+/**
+ * Update the angle increment (e.g. how fast we move through the sinwave)
+ * @param  {number} increment New increment value
+ */
+SinGenerator.prototype.setIncrement = function (increment) {
+    if (increment !== undefined) this.increment = increment;
+};
+
+/** 
+ * Generate the next value
+ * @return {number} A value between generators's min and max
+ */
+SinGenerator.prototype.generate = function () {
+    this._update();
+    var n = this.p.sin(this.angle);
+    n = this.p.map(n, -1, 1, this.min, this.max);
+    return n;
+};
+
+/**
+ * Internal update method for generating next value
+ * @private
+ */
+SinGenerator.prototype._update = function () {
+    this.angle += this.increment;
+};
+},{}],4:[function(require,module,exports){
 require("./sketches/noisy-word.js")();
 require("./sketches/halftone-flashlight-word.js")();
-},{"./sketches/halftone-flashlight-word.js":4,"./sketches/noisy-word.js":5}],4:[function(require,module,exports){
+require("./sketches/word-particle-wrapping.js")();
+},{"./sketches/halftone-flashlight-word.js":6,"./sketches/noisy-word.js":7,"./sketches/word-particle-wrapping.js":8}],5:[function(require,module,exports){
+module.exports = TextParticle;
+
+var BboxText = require("p5-bbox-aligned-text");
+
+function TextParticle(p, font, fontSize, text, position, velocity) {
+    this.p = p;
+    this._pos = position;
+    this._vel = velocity;
+    this._rotation = 0;
+    this._bboxText = new BboxText(font, text, fontSize, p);
+    this._bboxText.setAnchor(BboxText.ALIGN.BOX_CENTER, 
+                             BboxText.BASELINE.BOX_CENTER);
+
+    // Calculate particle bounds
+    var bounds = this._bboxText.getBbox(this._pos.x, this._pos.y);
+    this.width = bounds.w;
+    this.halfWidth = bounds.w / 2;
+    this.height = bounds.h;
+    this.halfHeight = bounds.h / 2;
+
+    // Holding on to the offscreen position for when the word is partially 
+    // offscreen, but not completely offscreen.
+    this._wrappedPos = null;
+    this._xReflectPos = null;
+    this._yReflectPos = null;
+}
+
+TextParticle.prototype.setVelocity = function (velocity) {
+    this._vel.x = velocity.x;
+    this._vel.y = velocity.y;
+}
+
+TextParticle.prototype.setRotation = function (radians) {
+    this._bboxText.setRotation(radians);
+}
+
+TextParticle.prototype.update = function () {
+    // Update position
+    this._pos.add(this._vel);
+
+    // If the particle is partially offscreen (but not fully), draw two 
+    // particles - one that is wrapped around the screen and one that is not.
+    this._wrappedPos = this._pos.copy();
+    this._xReflectPos = this._pos.copy();
+    this._yReflectPos = this._pos.copy();
+
+    // Calculate the positions of the sides of the particle
+    var left = this._pos.x - this.halfWidth;
+    var right = this._pos.x + this.halfWidth;
+    var top = this._pos.y - this.halfHeight;
+    var bottom = this._pos.y + this.halfHeight;
+
+    // Check if word is offscreen along x-axis
+    if (right > this.p.width) {
+        var amountOffscreen = right - this.p.width;
+        if (amountOffscreen > this.width) {
+            // Word is completely off the right edge of the screen, so it
+            // needs to be wrapped around to the left side of the screen. It is
+            // important to account for the "remainder" to get smooth motion:
+            // (amountOffscreen - this.width) = distance from left edge of word
+            //                                  to the right edge of the screen
+            var distBeyondWrap = (amountOffscreen - this.width);
+            this._pos.x = this.halfWidth + distBeyondWrap;
+            // If the particle wraps around the y-axis, we want to keep the x
+            // position up to date
+            this._wrappedPos.x = this._pos.x;
+        }
+        else {
+            // Word is only partially off the right edge of the screen, so the
+            // wrappedPos is going to be used. Project what the position of the
+            // particle would be if it were wrapped around the left edge of the
+            // screen
+            this._wrappedPos.x = -this.halfWidth + amountOffscreen;
+            this._xReflectPos.x = -this.halfWidth + amountOffscreen;
+        }
+    }
+    else if (left < 0) {
+        var amountOffscreen = -left;
+        if (amountOffscreen > this.width) {
+            // Word is completely off the left edge of the screen, so it needs
+            // to be wrapped around to the right side of the screen
+            var distBeyondWrap = (amountOffscreen - this.width);
+            this._pos.x = (this.p.width - this.halfWidth) - distBeyondWrap;
+            this._wrappedPos.x = this._pos.x;
+        }
+        else {
+            // Word is only partially off the left edge of the screen
+            this._wrappedPos.x = (this.p.width + this.halfWidth) - amountOffscreen;
+            this._xReflectPos.x = (this.p.width + this.halfWidth) - amountOffscreen;
+        }
+    }
+
+    // Check if word is offscreen along y-axis
+    if (bottom > this.p.height) {
+        var amountOffscreen = bottom - this.p.height;
+        if (amountOffscreen > this.height) {
+            // Word is completely off the bottom edge of the screen, so it
+            // needs to be wrapped around to the top side of the screen 
+            var distBeyondWrap = (amountOffscreen - this.height);
+            this._pos.y = this.halfHeight + distBeyondWrap;
+            // If the particle wraps around the x-axis, we want to keep the y
+            // position up to date
+            this._wrappedPos.y = this._pos.y;
+        }
+        else {
+            // Word is only partially off the bottom edge of the screen
+            this._wrappedPos.y = -this.halfHeight + amountOffscreen;
+            this._yReflectPos.y = -this.halfHeight + amountOffscreen;
+        }
+    }
+    else if (top < 0) {
+        var amountOffscreen = -top;
+        if (amountOffscreen > this.height) {
+            // Word is completely off the top edge of the screen, so it needs
+            // to be wrapped around to the bottom side of the screen
+            var distBeyondWrap = (amountOffscreen - this.height);
+            this._pos.y = (this.p.height - this.halfHeight) - distBeyondWrap;
+            this._wrappedPos.y = this._pos.y;
+        }
+        else {
+            // Word is only partially off the top edge of the screen
+            this._wrappedPos.y = (this.p.height + this.halfHeight) - amountOffscreen;
+            this._yReflectPos.y = (this.p.height + this.halfHeight) - amountOffscreen;
+        }
+    }
+
+};
+
+TextParticle.prototype.draw = function () {
+    this._bboxText.draw(this._pos.x, this._pos.y, this._rotation);
+
+    if (!this._wrappedPos.equals(this._pos)) {
+        // wrappedPos has a different value, so the particle is offscreen       
+        this._bboxText.draw(this._wrappedPos.x, this._wrappedPos.y, 
+                            this._rotation);
+    }
+    
+    if (this._xReflectPos.x !== this._pos.x) {        
+        this._xReflectPos.y = this._pos.y;
+        this._bboxText.draw(this._xReflectPos.x, this._xReflectPos.y,
+                            this._rotation);
+    }
+
+    if (this._yReflectPos.y !== this._pos.y) {        
+        this._yReflectPos.x = this._pos.x;
+        this._bboxText.draw(this._yReflectPos.x, this._yReflectPos.y, 
+                            this._rotation);
+    }
+};
+},{"p5-bbox-aligned-text":1}],6:[function(require,module,exports){
 module.exports = startSketch;
 
 // Modules
@@ -438,7 +656,8 @@ function setup() {
     p.background(255);
     p.textSize(fontSize);
     bboxText = new BboxText(font, text, fontSize, p);
-    bboxText.setAnchor(BboxText.ALIGN.CENTER, BboxText.BASELINE.FONT_CENTER);
+    bboxText.setAnchor(BboxText.ALIGN.BOX_CENTER, 
+                       BboxText.BASELINE.FONT_CENTER);
     p.noStroke();
     p.fill("#0A000A");    
     bboxText.draw(p.width / 2, p.height / 2);
@@ -511,7 +730,7 @@ function draw() {
         p.ellipse(circle.x, circle.y, radius, radius);
     }
 }
-},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":6,"p5-bbox-aligned-text":1}],5:[function(require,module,exports){
+},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":9,"p5-bbox-aligned-text":1}],7:[function(require,module,exports){
 module.exports = startSketch;
 
 // Modules
@@ -600,7 +819,104 @@ function draw() {
 		p.text(text, 0, 0);
 	p.pop();
 }
-},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":6}],6:[function(require,module,exports){
+},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":9}],8:[function(require,module,exports){
+module.exports = startSketch;
+
+// Modules
+var dom = require("../utilities/dom-utilities.js");
+var Noise = require("../generators/noise-generators.js");
+var SinGenerator = require("../generators/sin-generator.js");
+var TextParticle = require("../particles/text-particle.js");
+
+// Globals
+var p, font, textParticle, rotationGenerator, sinGenerator;
+var isFirstFrame = true;
+var isMouseOver = false;
+var canvasSize = {
+    width: 400,
+    height: 150
+};
+var text = "Ripple";
+var fontSize = 50;
+var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+
+function startSketch() {    
+    // Create div on page for the sketch
+    var id = "word-particle-wrapping";
+    var sketchesContainer = document.getElementById("sketches");
+    var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
+
+    // Create a p5 instance inside of the ID specified
+    new p5(function (_p) {
+        p = _p;
+        p.preload = preload;
+        p.setup = setup;
+        p.draw = draw;
+    }, id); 
+}
+
+function preload() {
+    // Load the font into a global - this way we can ask the font for a bbox
+    font = p.loadFont(fontPath);
+}
+
+function setup() {
+    var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
+
+    // There isn't a good way to check whether the sketch has the mouse over
+    // it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
+    // always reliable.
+    renderer.canvas.addEventListener("mouseover", function () {
+        isMouseOver = true;
+    });
+    renderer.canvas.addEventListener("mouseout", function () {
+        isMouseOver = false;
+    });
+
+    // Draw the stationary text
+    p.background(255);
+    p.textFont(font);
+    p.textSize(fontSize);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.stroke(255);
+    p.fill("#00ACE0");
+    p.strokeWeight(2);      
+    p.text(text, p.width / 2, p.height / 2);
+
+    // Create the word particle
+    var pos = p.createVector(p.width / 2, p.height / 2);
+    var vel = p.createVector(3, -1); 
+    textParticle = new TextParticle(p, font, fontSize, text, pos, vel);
+
+    rotationGenerator = new SinGenerator(p, -Math.PI/5, Math.PI/5, 0.06);
+    directionGenerator = new Noise.NoiseGenerator1D(p, 0, p.TWO_PI, 0.005);
+}
+
+function draw() {
+    // No need to do anything if the mouse isn't over the sketch
+    if (!isMouseOver) return;
+
+    // When the text is about to become active for the first time, clear
+    // the stationary logo that was drawn during setup. 
+    if (isFirstFrame) {
+        p.background(255);
+        isFirstFrame = false;
+    }
+
+    // Update the particles velocity and rotation
+    var angle = directionGenerator.generate();
+    textParticle.setVelocity({x: p.cos(angle) * 1.25, y: p.sin(angle) * 1.25});
+    var rotation = rotationGenerator.generate();
+    textParticle.setRotation(rotation);
+    textParticle.update();
+
+    // Draw the particle
+    p.fill("#00ACE0");
+    p.stroke(255);
+    p.strokeWeight(1);
+    textParticle.draw();
+}
+},{"../generators/noise-generators.js":2,"../generators/sin-generator.js":3,"../particles/text-particle.js":5,"../utilities/dom-utilities.js":9}],9:[function(require,module,exports){
 module.exports.forEachInObject = function (object, iterationFunction) {
 	if (!object) return;
 	for (var key in object) {
@@ -639,7 +955,7 @@ module.exports.addAttributes = function (element, attributes) {
 module.exports.removeElement = function (element) {
 	element.parentElement.removeChild(element);
 };
-},{}]},{},[3])
+},{}]},{},[4])
 
 
 //# sourceMappingURL=main/main.js.map
