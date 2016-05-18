@@ -1,7 +1,7 @@
 module.exports = startSketch;
 
 // Modules
-var Dom = require("../utilities/dom-utilities.js");
+var dom = require("../utilities/dom-utilities.js");
 var Noise = require("../generators/noise-generators.js");
 
 // Globals
@@ -10,17 +10,17 @@ var isFirstFrame = true;
 var isMouseOver = false;
 var canvasSize = {
 	width: 400,
-	height: 150 
+	height: 150
 };
 var text = "String";
 var fontSize = 120;
-var fontPath = "assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontPath = "/assets/fonts/leaguegothic-regular-webfont.ttf";
 
 function startSketch(containerID) {	
 	// Create div on page for the sketch
 	var id = "noisy-word";
 	var sketchesContainer = document.getElementById("sketches");
-	var sketchDiv = Dom.createElement("div", {id: id}, sketchesContainer);
+	var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
 
 	// Create a p5 instance inside of the ID specified
 	new p5(function (_p) {
