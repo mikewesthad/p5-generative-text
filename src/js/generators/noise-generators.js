@@ -20,7 +20,8 @@ function NoiseGenerator1D(p, min, max, increment, offset) {
     this.min = (min !== undefined) ? min : 0;
     this.max = (max !== undefined) ? max : 1;
     this.increment = (increment !== undefined) ? increment : 0.1;
-    this.position = (offset !== undefined) ? p.random(-1000000, 1000000) : 0;
+    this.position = (offset !== undefined) ? offset : 
+                                            p.random(-1000000, 1000000);
 }
 
 /**
