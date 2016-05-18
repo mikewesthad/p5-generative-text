@@ -6,12 +6,12 @@ html, body, canvas {
 }
 
 #sketches {
-  text-align: center;
+    width: 100%;
 }
 
 #sketches canvas {
-  display: inline-block;
+  display: block;
+  margin: 20px auto;
   border: 1px solid #BDBDBD;
   border-radius: 3px;
-  margin: 20px;
 }
