@@ -16,7 +16,9 @@ var canvasSize = {
 };
 var text = "Ripple";
 var fontSize = 50;
-var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + 
+               "league-spartan/leaguespartan-bold.ttf";
 
 function startSketch() {    
     // Create div on page for the sketch

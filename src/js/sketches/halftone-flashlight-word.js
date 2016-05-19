@@ -15,7 +15,9 @@ var canvasSize = {
 };
 var text = "halftone";
 var fontSize = 150;
-var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + 
+               "theleagueof-league-gothic/leaguegothic-regular-webfont.ttf";
 
 function startSketch() { 
     // Create div on page for the sketch
