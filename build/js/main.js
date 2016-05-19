@@ -449,7 +449,80 @@ SinGenerator.prototype._update = function () {
 require("./sketches/noisy-word.js")();
 require("./sketches/halftone-flashlight-word.js")();
 require("./sketches/word-particle-wrapping.js")();
-},{"./sketches/halftone-flashlight-word.js":6,"./sketches/noisy-word.js":7,"./sketches/word-particle-wrapping.js":8}],5:[function(require,module,exports){
+require("./sketches/fleeing-halftones.js")();
+},{"./sketches/fleeing-halftones.js":7,"./sketches/halftone-flashlight-word.js":8,"./sketches/noisy-word.js":9,"./sketches/word-particle-wrapping.js":10}],5:[function(require,module,exports){
+module.exports = FleeingParticle;
+var Noise = require("../generators/noise-generators.js");
+
+function FleeingParticle(p, color, radius, position, velocity) {
+    this.p = p;
+    this._pos = position.copy();
+    this._initPos = position.copy();
+    this._vel = velocity;
+    this._color = color;
+    this._radius = radius;
+    this._noiseGenerator = new Noise.NoiseGenerator1D(p, 0, 1, 0.1);
+    this._maxVelocity = 5;
+
+    this._xMax = this.p.width + this._radius;
+    this._xMin = -this._radius;
+    this._yMax = this.p.height + this._radius;
+    this._yMin = -this._radius;
+}
+
+FleeingParticle.prototype.headTowardsInitial = function () {
+    var dx = this._initPos.x - this._pos.x;
+    var dy = this._initPos.y - this._pos.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var angle = this.p.atan2(dy, dx);
+
+    var noiseMax = this.p.map(dist, 50, 0, this.p.TWO_PI/2, 0);
+    noiseMax = Math.min(noiseMax, this.p.TWO_PI/2);
+    var noise = this._noiseGenerator.generate();
+    noise = this.p.map(noise, 0, 1, -noiseMax, noiseMax);
+    angle += noise;
+
+    this._vel.x = Math.cos(angle) * Math.min(this._maxVelocity, dist);
+    this._vel.y = Math.sin(angle) * Math.min(this._maxVelocity, dist);
+};
+
+FleeingParticle.prototype.avoid = function (x, y) {
+    var dx = this._pos.x - x;
+    var dy = this._pos.y - y;
+    var angle = this.p.atan2(dy, dx);
+    var dist = Math.sqrt(dx * dx + dy * dy);
+
+    var noiseMax = this.p.map(dist, 0, 50, 0, this.p.TWO_PI/2);
+    noiseMax = Math.min(noiseMax, this.p.TWO_PI/2);
+    var noise = this._noiseGenerator.generate();
+    noise = this.p.map(noise, 0, 1, -noiseMax, noiseMax);
+    angle += noise;
+
+    this._vel.x = Math.cos(angle) * this._maxVelocity;
+    this._vel.y = Math.sin(angle) * this._maxVelocity;
+};
+
+FleeingParticle.prototype.update = function () {
+    this._pos.add(this._vel);
+};
+
+FleeingParticle.prototype.draw = function () {
+    if (this._isOffscreen()) return;
+    this.p.push();
+        this.p.fill(this._color);
+        this.p.noStroke();
+        this.p.ellipse(this._pos.x, this._pos.y, this._radius, this._radius);
+    this.p.pop();
+};
+
+FleeingParticle.prototype._isOffscreen = function () {
+    if (this._pos.x > this._xMax) return true;
+    if (this._pos.x < this._xMin) return true;    
+    if (this._pos.y > this._yMax) return true;    
+    if (this._pos.y < this._yMin) return true;
+    return false;
+};
+},{"../generators/noise-generators.js":2}],6:[function(require,module,exports){
 module.exports = TextParticle;
 
 var BboxText = require("p5-bbox-aligned-text");
@@ -601,7 +674,156 @@ TextParticle.prototype.draw = function () {
                             this._rotation);
     }
 };
-},{"p5-bbox-aligned-text":1}],6:[function(require,module,exports){
+},{"p5-bbox-aligned-text":1}],7:[function(require,module,exports){
+module.exports = startSketch;
+
+// Modules
+var dom = require("../utilities/dom-utilities.js");
+var Noise = require("../generators/noise-generators.js");
+var BboxText = require("p5-bbox-aligned-text");
+var FleeingParticle = require("../particles/fleeing-particle.js");
+
+// Globals
+var p, font;
+var particles = [];
+var isFirstFrame = true;
+var isMouseOver = false;
+var canvasSize = {
+    width: 400,
+    height: 150
+};
+var text = "scatter";
+var fontSize = 140;
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + "josefin-slab/JosefinSlab-Bold.ttf";
+
+function startSketch() { 
+    // Create div on page for the sketch
+    var id = "fleeing-halftones";
+    var sketchesContainer = document.getElementById("sketches");
+    var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
+
+    // Create a p5 instance inside of the ID specified
+    new p5(function (_p) {
+        p = _p;
+        p.preload = preload;
+        p.setup = setup;
+        p.draw = draw;
+    }, id); 
+}
+
+function preload() {
+    // Load the font into a global - this way we can ask the font for a bbox
+    font = p.loadFont(fontPath);
+}
+
+function setup() {
+    var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
+
+    // There isn't a good way to check whether the sketch has the mouse over
+    // it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
+    // always reliable.
+    renderer.canvas.addEventListener("mouseover", function () {
+        isMouseOver = true;
+    });
+    renderer.canvas.addEventListener("mouseout", function () {
+        isMouseOver = false;
+    });
+
+    // Draw the stationary text
+    p.background(255);
+    p.textSize(fontSize);
+    bboxText = new BboxText(font, text, fontSize, p);
+    bboxText.setAnchor(BboxText.ALIGN.BOX_CENTER, 
+                       BboxText.BASELINE.FONT_CENTER);
+    p.noStroke();
+    p.fill("#0A000A");    
+    bboxText.draw(p.width / 2, p.height / 2);
+
+    // Loop over the pixels in the text's bounding box to sample the word
+    var bbox = bboxText.getBbox(p.width / 2, p.height / 2);
+    var startX = Math.floor(Math.max(bbox.x - 5, 0));
+    var endX = Math.ceil(Math.min(bbox.x + bbox.w + 5, p.width));
+    var startY = Math.floor(Math.max(bbox.y - 5, 0));
+    var endY = Math.ceil(Math.min(bbox.y + bbox.h + 5, p.height));
+    var spacing = 5;
+    p.loadPixels();
+    p.pixelDensity(1);
+    circles = [];
+    var jitter = p.random.bind(p, -2/3 * spacing, 2/3 * spacing);
+    var particleRadius = 8;
+    for (var y = startY; y < endY; y += spacing) {
+        for (var x = startX; x < endX; x += spacing) {  
+            var i = 4 * ((y * p.width) + x);
+            var r = p.pixels[i];
+            var g = p.pixels[i + 1];
+            var b = p.pixels[i + 2];
+            var a = p.pixels[i + 3];
+            var c = p.color(r, g, b, a);
+            if (p.saturation(c) > 0) {
+                var pos = p.createVector(x + jitter(), y + jitter());
+                var vel = randomVelocity(); 
+                var col = p.color("#06FFFF");
+                var rad = particleRadius + p.random(-3, 1);
+                var particle = new FleeingParticle(p, col, rad, 
+                                                   pos, vel);
+                particles.push(particle);
+
+                var pos = p.createVector(x + jitter(), y + jitter());
+                var vel = randomVelocity();
+                var col = p.color("#FE00FE");
+                var rad = particleRadius + p.random(-3, 1);
+                var particle = new FleeingParticle(p, col, rad, 
+                                                   pos, vel);
+                particles.push(particle);
+
+                var pos = p.createVector(x + jitter(), y + jitter());
+                var vel = randomVelocity();
+                var col = p.color("#FFFF04");
+                var rad = particleRadius + p.random(-3, 1);
+                var particle = new FleeingParticle(p, col, rad, 
+                                                   pos, vel);
+                particles.push(particle);
+            }
+        }
+    }
+    p.updatePixels();
+}
+
+function randomVelocity() {
+    var angle = p.random(0, p.TWO_PI);
+    var magnitude = p.random(2, 10);
+    var velocity = p.createVector(magnitude * Math.cos(angle),
+                                  magnitude * Math.sin(angle));
+    return velocity;
+}
+
+function draw() {
+    // When the text is about to become active for the first time, clear
+    // the stationary logo that was drawn during setup. 
+    if (isFirstFrame) {
+        p.background(255);
+        isFirstFrame = false;
+    }
+
+    // Clear
+    p.blendMode(p.BLEND);
+    p.background(255);
+
+    // Draw "halftone" logo
+    p.noStroke();   
+    p.blendMode(p.MULTIPLY);
+    for (var i = 0; i < particles.length; i += 1) {
+        var particle = particles[i];
+
+        if (isMouseOver) particle.avoid(p.mouseX, p.mouseY);
+        else particle.headTowardsInitial();
+
+        particle.update();
+        particle.draw();
+    }
+}
+},{"../generators/noise-generators.js":2,"../particles/fleeing-particle.js":5,"../utilities/dom-utilities.js":11,"p5-bbox-aligned-text":1}],8:[function(require,module,exports){
 module.exports = startSketch;
 
 // Modules
@@ -619,7 +841,9 @@ var canvasSize = {
 };
 var text = "halftone";
 var fontSize = 150;
-var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + 
+               "theleagueof-league-gothic/leaguegothic-regular-webfont.ttf";
 
 function startSketch() { 
     // Create div on page for the sketch
@@ -732,7 +956,7 @@ function draw() {
         p.ellipse(circle.x, circle.y, radius, radius);
     }
 }
-},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":9,"p5-bbox-aligned-text":1}],7:[function(require,module,exports){
+},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":11,"p5-bbox-aligned-text":1}],9:[function(require,module,exports){
 module.exports = startSketch;
 
 // Modules
@@ -744,84 +968,86 @@ var p, font, rotationNoise, xyNoise;
 var isFirstFrame = true;
 var isMouseOver = false;
 var canvasSize = {
-	width: 400,
-	height: 150
+    width: 400,
+    height: 150
 };
 var text = "Squiggle";
 var fontSize = 100;
-var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + 
+               "theleagueof-league-gothic/leaguegothic-regular-webfont.ttf";
 
-function startSketch() {	
-	// Create div on page for the sketch
-	var id = "noisy-word";
-	var sketchesContainer = document.getElementById("sketches");
-	var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
+function startSketch() {    
+    // Create div on page for the sketch
+    var id = "noisy-word";
+    var sketchesContainer = document.getElementById("sketches");
+    var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
 
-	// Create a p5 instance inside of the ID specified
-	new p5(function (_p) {
-		p = _p;
-		p.preload = preload;
-		p.setup = setup;
-		p.draw = draw;
-	}, id);	
+    // Create a p5 instance inside of the ID specified
+    new p5(function (_p) {
+        p = _p;
+        p.preload = preload;
+        p.setup = setup;
+        p.draw = draw;
+    }, id); 
 }
 
 function preload() {
-	// Load the font into a global - this way we can ask the font for a bbox
-	font = p.loadFont(fontPath);
+    // Load the font into a global - this way we can ask the font for a bbox
+    font = p.loadFont(fontPath);
 }
 
 function setup() {
-	var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
+    var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
 
-	// There isn't a good way to check whether the sketch has the mouse over
-	// it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
-	// always reliable.
-	renderer.canvas.addEventListener("mouseover", function () {
-		isMouseOver = true;
-	});
-	renderer.canvas.addEventListener("mouseout", function () {
-		isMouseOver = false;
-	});
+    // There isn't a good way to check whether the sketch has the mouse over
+    // it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
+    // always reliable.
+    renderer.canvas.addEventListener("mouseover", function () {
+        isMouseOver = true;
+    });
+    renderer.canvas.addEventListener("mouseout", function () {
+        isMouseOver = false;
+    });
 
-	// Draw the stationary text
-	p.background(255);
-	p.textFont(font);
-	p.textSize(fontSize);
-	p.textAlign(p.CENTER, p.CENTER);
-	p.stroke(255);
-	p.fill("#0A000A");
-	p.strokeWeight(2);		
-	p.text(text, p.width / 2, p.height / 2);
+    // Draw the stationary text
+    p.background(255);
+    p.textFont(font);
+    p.textSize(fontSize);
+    p.textAlign(p.CENTER, p.CENTER);
+    p.stroke(255);
+    p.fill("#0A000A");
+    p.strokeWeight(2);      
+    p.text(text, p.width / 2, p.height / 2);
 
-	// Set up noise generators
-	rotationNoise = new Noise.NoiseGenerator1D(p, -p.PI/4, p.PI/4, 0.02); 
-	xyNoise = new Noise.NoiseGenerator2D(p, -100, 100, -50, 50, 0.01, 0.01);
+    // Set up noise generators
+    rotationNoise = new Noise.NoiseGenerator1D(p, -p.PI/4, p.PI/4, 0.02); 
+    xyNoise = new Noise.NoiseGenerator2D(p, -100, 100, -50, 50, 0.01, 0.01);
 }
 
 function draw() {
-	// No need to do anything if the mouse isn't over the sketch
-	if (!isMouseOver) return;
+    // No need to do anything if the mouse isn't over the sketch
+    if (!isMouseOver) return;
 
-	// When the text is about to become active for the first time, clear
-	// the stationary logo that was drawn during setup. 
-	if (isFirstFrame) {
-		p.background(255);
-		isFirstFrame = false;
-	}
+    // When the text is about to become active for the first time, clear
+    // the stationary logo that was drawn during setup. 
+    if (isFirstFrame) {
+        p.background(255);
+        isFirstFrame = false;
+    }
 
-	// Calculate position and rotation to create a jittery logo
-	var rotation = rotationNoise.generate();
-	var xyOffset = xyNoise.generate();
+    // Calculate position and rotation to create a jittery logo
+    var rotation = rotationNoise.generate();
+    var xyOffset = xyNoise.generate();
 
-	// Draw the logo
-	p.push();
-		p.translate(p.width / 2 + xyOffset.x, p.height / 2 + xyOffset.y);
-		p.rotate(rotation);
-		p.text(text, 0, 0);
-	p.pop();
+    // Draw the logo
+    p.push();
+        p.translate(p.width / 2 + xyOffset.x, p.height / 2 + xyOffset.y);
+        p.rotate(rotation);
+        p.text(text, 0, 0);
+    p.pop();
 }
-},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":9}],8:[function(require,module,exports){
+},{"../generators/noise-generators.js":2,"../utilities/dom-utilities.js":11}],10:[function(require,module,exports){
 module.exports = startSketch;
 
 // Modules
@@ -840,7 +1066,9 @@ var canvasSize = {
 };
 var text = "Ripple";
 var fontSize = 50;
-var fontPath = "./assets/fonts/leaguegothic-regular-webfont.ttf";
+var fontsFolder = "./assets/fonts/";
+var fontPath = fontsFolder + 
+               "league-spartan/leaguespartan-bold.ttf";
 
 function startSketch() {    
     // Create div on page for the sketch
@@ -918,7 +1146,7 @@ function draw() {
     p.strokeWeight(1);
     textParticle.draw();
 }
-},{"../generators/noise-generators.js":2,"../generators/sin-generator.js":3,"../particles/text-particle.js":5,"../utilities/dom-utilities.js":9}],9:[function(require,module,exports){
+},{"../generators/noise-generators.js":2,"../generators/sin-generator.js":3,"../particles/text-particle.js":6,"../utilities/dom-utilities.js":11}],11:[function(require,module,exports){
 module.exports.forEachInObject = function (object, iterationFunction) {
 	if (!object) return;
 	for (var key in object) {
