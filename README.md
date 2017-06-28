@@ -4,4 +4,4 @@ Experiments with text & visuals in [p5.js](http://p5js.org/)
 
 Recent snapshot:
 
-![snapshot](demo.png)
+![snapshot](images/screenshot.png)
