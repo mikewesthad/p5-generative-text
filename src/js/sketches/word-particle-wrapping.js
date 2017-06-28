@@ -1,98 +1,81 @@
-module.exports = startSketch;
+import p5 from "p5/lib/p5.min.js"; // Min disables slow error warnings
+import WaveGenerator from "../generators/wave-generator";
+import TextParticle from "../particles/text-particle";
+import NoiseGenerator from "../generators/noise-generator";
 
-// Modules
-var dom = require("../utilities/dom-utilities.js");
-var Noise = require("../generators/noise-generators.js");
-var SinGenerator = require("../generators/sin-generator.js");
-var TextParticle = require("../particles/text-particle.js");
-
-// Globals
-var p, font, textParticle, rotationGenerator, sinGenerator;
-var isFirstFrame = true;
-var isMouseOver = false;
-var canvasSize = {
-    width: 400,
-    height: 150
-};
-var text = "Ripple";
-var fontSize = 50;
-var fontsFolder = "./assets/fonts/";
-var fontPath = fontsFolder + 
-               "league-spartan/leaguespartan-bold.ttf";
-
-function startSketch() {    
-    // Create div on page for the sketch
-    var id = "word-particle-wrapping";
-    var sketchesContainer = document.getElementById("sketches");
-    var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
-
-    // Create a p5 instance inside of the ID specified
-    new p5(function (_p) {
-        p = _p;
-        p.preload = preload;
-        p.setup = setup;
-        p.draw = draw;
-    }, id); 
-}
-
-function preload() {
-    // Load the font into a global - this way we can ask the font for a bbox
-    font = p.loadFont(fontPath);
-}
-
-function setup() {
-    var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
-
-    // There isn't a good way to check whether the sketch has the mouse over
-    // it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
-    // always reliable.
-    renderer.canvas.addEventListener("mouseover", function () {
-        isMouseOver = true;
-    });
-    renderer.canvas.addEventListener("mouseout", function () {
-        isMouseOver = false;
-    });
-
-    // Draw the stationary text
-    p.background(255);
-    p.textFont(font);
-    p.textSize(fontSize);
-    p.textAlign(p.CENTER, p.CENTER);
-    p.stroke(255);
-    p.fill("#00ACE0");
-    p.strokeWeight(2);      
-    p.text(text, p.width / 2, p.height / 2);
-
-    // Create the word particle
-    var pos = p.createVector(p.width / 2, p.height / 2);
-    var vel = p.createVector(3, -1); 
-    textParticle = new TextParticle(p, font, fontSize, text, pos, vel);
-
-    rotationGenerator = new SinGenerator(p, -Math.PI/5, Math.PI/5, 0.06);
-    directionGenerator = new Noise.NoiseGenerator1D(p, 0, p.TWO_PI, 0.005);
-}
-
-function draw() {
-    // No need to do anything if the mouse isn't over the sketch
-    if (!isMouseOver) return;
-
-    // When the text is about to become active for the first time, clear
-    // the stationary logo that was drawn during setup. 
-    if (isFirstFrame) {
-        p.background(255);
-        isFirstFrame = false;
+export default class Sketch {
+    /**
+     * @param {HTMLElement} element Node to append the sketch to
+     * @memberof Sketch
+     */
+    constructor(element) {
+        new p5(p => {
+            this.p = p;
+            p.preload = () => this.preload(p);
+            p.setup = () => this.setup(p);
+            p.draw = () => this.draw(p);
+        }, element);
     }
 
-    // Update the particles velocity and rotation
-    var angle = directionGenerator.generate();
-    textParticle.setVelocity({x: p.cos(angle) * 1.25, y: p.sin(angle) * 1.25});
-    var rotation = rotationGenerator.generate();
-    textParticle.setRotation(rotation);
-    textParticle.update();
+    preload(p) {
+        this._font = p.loadFont("./assets/fonts/league-spartan/leaguespartan-bold.ttf");
+    }
 
-    // Draw the particle
-    p.fill("#00ACE0");
-    p.stroke(255);
-    p.strokeWeight(1);
-    textParticle.draw();
+    setup(p) {
+        const renderer = p.createCanvas(400, 150);
+
+        // Track the state of the mouse - p5 doesn't provide a way to do this
+        this._isMouseOver = false;
+        renderer.canvas.addEventListener("mouseover", () => {this._isMouseOver = true});
+        renderer.canvas.addEventListener("mouseout", () => {this._isMouseOver = false});
+
+        // Text setup
+        p.background(255);
+        p.textFont(this._font);
+        p.textSize(50);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.stroke(255);
+        p.fill("#00ACE0");
+        p.strokeWeight(2);
+        
+        // Create the word particle
+        const pos = p.createVector(p.width / 2, p.height / 2);
+        const vel = p.createVector(3, -1); 
+        this._textParticle = new TextParticle(p, this._font, 50, "ripple", pos, vel);
+
+        this._rotGenerator = new WaveGenerator({
+            min: -Math.PI / 5, max: Math.PI / 5, frequency: 0.5
+        });
+        this._dirGenerator = new NoiseGenerator({
+            instance: p, min: 0, max: 2 * Math.PI, speed: 0.1
+        });
+
+        this._time = performance.now(); 
+    }
+
+    draw(p) {
+        const now = performance.now();
+        const elapsedSeconds = (now - this._time) / 1000;
+        this._time = now;
+        
+        if (this._isMouseOver || p.frameCount <= 1) {
+            // Update the particles velocity and rotation
+            const angle = this._dirGenerator.addTime(elapsedSeconds).getCurrentValue();
+            this._textParticle.setVelocity({x: p.cos(angle) * 1.25, y: p.sin(angle) * 1.25});
+            const rotation = this._rotGenerator.addTime(elapsedSeconds).getCurrentValue();
+            this._textParticle.setRotation(rotation);
+            this._textParticle.update();
+
+            // Draw the particle
+            p.fill("#00ACE0");
+            p.stroke(255);
+            p.strokeWeight(1);
+            this._textParticle.draw();
+        }
+    }
+
+    remove() {
+        this.p.remove();
+    }
 }
+

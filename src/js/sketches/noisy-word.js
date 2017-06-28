@@ -1,90 +1,71 @@
-module.exports = startSketch;
+import p5 from "p5/lib/p5.min.js"; // Min disables slow error warnings
+import NoiseGenerator from "../generators/noise-generator";
 
-// Modules
-var dom = require("../utilities/dom-utilities.js");
-var Noise = require("../generators/noise-generators.js");
-
-// Globals
-var p, font, rotationNoise, xyNoise;
-var isFirstFrame = true;
-var isMouseOver = false;
-var canvasSize = {
-    width: 400,
-    height: 150
-};
-var text = "Squiggle";
-var fontSize = 100;
-var fontsFolder = "./assets/fonts/";
-var fontPath = fontsFolder + 
-               "theleagueof-league-gothic/leaguegothic-regular-webfont.ttf";
-
-function startSketch() {    
-    // Create div on page for the sketch
-    var id = "noisy-word";
-    var sketchesContainer = document.getElementById("sketches");
-    var sketchDiv = dom.createElement("div", {id: id}, sketchesContainer);
-
-    // Create a p5 instance inside of the ID specified
-    new p5(function (_p) {
-        p = _p;
-        p.preload = preload;
-        p.setup = setup;
-        p.draw = draw;
-    }, id); 
-}
-
-function preload() {
-    // Load the font into a global - this way we can ask the font for a bbox
-    font = p.loadFont(fontPath);
-}
-
-function setup() {
-    var renderer = p.createCanvas(canvasSize.width, canvasSize.height);
-
-    // There isn't a good way to check whether the sketch has the mouse over
-    // it. p.mouseX & p.mouseY are initialized to (0, 0), and p.focused isn't 
-    // always reliable.
-    renderer.canvas.addEventListener("mouseover", function () {
-        isMouseOver = true;
-    });
-    renderer.canvas.addEventListener("mouseout", function () {
-        isMouseOver = false;
-    });
-
-    // Draw the stationary text
-    p.background(255);
-    p.textFont(font);
-    p.textSize(fontSize);
-    p.textAlign(p.CENTER, p.CENTER);
-    p.stroke(255);
-    p.fill("#0A000A");
-    p.strokeWeight(2);      
-    p.text(text, p.width / 2, p.height / 2);
-
-    // Set up noise generators
-    rotationNoise = new Noise.NoiseGenerator1D(p, -p.PI/4, p.PI/4, 0.02); 
-    xyNoise = new Noise.NoiseGenerator2D(p, -100, 100, -50, 50, 0.01, 0.01);
-}
-
-function draw() {
-    // No need to do anything if the mouse isn't over the sketch
-    if (!isMouseOver) return;
-
-    // When the text is about to become active for the first time, clear
-    // the stationary logo that was drawn during setup. 
-    if (isFirstFrame) {
-        p.background(255);
-        isFirstFrame = false;
+export default class Sketch {
+    /**
+     * @param {HTMLElement} element Node to append the sketch to
+     * @memberof Sketch
+     */
+    constructor(element) {
+        new p5(p => {
+            this.p = p;
+            p.preload = () => this.preload(p);
+            p.setup = () => this.setup(p);
+            p.draw = () => this.draw(p);
+        }, element);
     }
 
-    // Calculate position and rotation to create a jittery logo
-    var rotation = rotationNoise.generate();
-    var xyOffset = xyNoise.generate();
+    preload(p) {
+        this._font = p.loadFont(
+            "./assets/fonts/theleagueof-league-gothic/leaguegothic-regular-webfont.ttf"
+        );
+    }
 
-    // Draw the logo
-    p.push();
-        p.translate(p.width / 2 + xyOffset.x, p.height / 2 + xyOffset.y);
-        p.rotate(rotation);
-        p.text(text, 0, 0);
-    p.pop();
+    setup(p) {
+        const renderer = p.createCanvas(400, 150);
+
+        // Track the state of the mouse - p5 doesn't provide a way to do this
+        this._isMouseOver = false;
+        renderer.canvas.addEventListener("mouseover", () => {this._isMouseOver = true});
+        renderer.canvas.addEventListener("mouseout", () => {this._isMouseOver = false});
+
+        // Text setup
+        this._text = "squiggle";
+        p.background(255);
+        p.textFont(this._font);
+        p.textSize(100);
+        p.textAlign(p.CENTER, p.CENTER);
+        p.stroke(255);
+        p.fill("#0A000A");
+        p.strokeWeight(2);
+
+        const range = Math.PI / 4;
+        this._rotNoise = new NoiseGenerator({instance: p, min: -range, max: range, speed: 0.1});
+        this._xNoise = new NoiseGenerator({instance: p, min: -100, max: 100, speed: 0.75});
+        this._yNoise = new NoiseGenerator({instance: p, min: -50, max: 50, speed: 0.5});
+
+        this._time = performance.now(); 
+    }
+
+    draw(p) {
+        const now = performance.now();
+        const elapsedSeconds = (now - this._time) / 1000;
+        this._time = now;
+
+        if (this._isMouseOver || p.frameCount <= 1) {
+            const dx = this._xNoise.addTime(elapsedSeconds).getCurrentValue();
+            const dy = this._yNoise.addTime(elapsedSeconds).getCurrentValue();
+            const rot = this._rotNoise.addTime(elapsedSeconds).getCurrentValue();
+            p.push();
+                p.translate(p.width / 2 + dx, p.height / 2 + dy);
+                p.rotate(rot);
+                p.text(this._text, 0, 0);
+            p.pop();
+        }
+    }
+
+    remove() {
+        this.p.remove();
+    }
 }
+
